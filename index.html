@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Product Hub | Premium Store</title>
+    
+    <!-- LIBRARIES -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+    <!-- TAILWIND CONFIG -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
+                    colors: {
+                        brand: { 500: '#ff6b00', 600: '#e65100' }, // Signature Orange
+                        dark: { bg: '#050505', card: '#121212', border: '#262626' }
+                    },
+                    animation: { 'fade-in': 'fadeIn 0.3s ease-out', 'slide-up': 'slideUp 0.4s ease-out' },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- CUSTOM STYLES -->
+    <style>
+        body { background-color: #050505; color: #fff; -webkit-tap-highlight-color: transparent; }
+        html:not(.dark) body { background-color: #f8fafc; color: #0f172a; }
+        
+        /* Glassmorphism */
+        .glass { background: rgba(18, 18, 18, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08); }
+        html:not(.dark) .glass { background: rgba(255, 255, 255, 0.9); border-bottom: 1px solid rgba(0,0,0,0.05); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        
+        /* Utilities */
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .loader { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #ff6b00; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen transition-colors duration-300">
+
+    <!-- NAVIGATION -->
+    <nav class="fixed top-0 w-full z-50 glass">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+            <!-- Logo -->
+            <div onclick="router('home')" class="cursor-pointer flex items-center gap-2">
+                <div class="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">P</div>
+                <span class="text-xl font-bold tracking-tight">Product<span class="text-brand-500">Hub.</span></span>
+            </div>
+
+            <!-- Desktop Links -->
+            <div class="hidden md:flex items-center space-x-8 text-sm font-medium text-gray-400">
+                <a onclick="router('home')" class="hover:text-brand-500 cursor-pointer transition">Store</a>
+                <a onclick="router('dashboard')" class="hover:text-brand-500 cursor-pointer transition">Orders</a>
+                
+                <!-- Auth State -->
+                <div id="auth-desktop">
+                    <button onclick="openModal('auth-modal')" class="bg-white text-black hover:bg-gray-200 px-5 py-2 rounded-full font-bold transition text-xs uppercase tracking-wider">Login</button>
+                </div>
+                <div id="profile-desktop" class="hidden relative group">
+                    <img id="nav-avatar" src="" class="w-9 h-9 rounded-full border border-gray-700 cursor-pointer">
+                    <div class="absolute right-0 mt-2 w-48 bg-dark-card border border-dark-border rounded-xl shadow-2xl py-2 hidden group-hover:block animate-fade-in">
+                        <a onclick="router('profile')" class="block px-4 py-2 hover:bg-gray-800 text-sm">Profile Settings</a>
+                        <a onclick="logout()" class="block px-4 py-2 hover:bg-gray-800 text-red-500 text-sm">Sign Out</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Toggle -->
+            <button onclick="toggleMenu()" class="md:hidden text-2xl text-gray-300"><i class="fas fa-bars"></i></button>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div id="mobile-menu" class="hidden md:hidden bg-dark-card border-b border-dark-border absolute w-full">
+            <div class="p-4 space-y-4">
+                <a onclick="router('home')" class="block text-gray-300 font-medium">Store</a>
+                <a onclick="router('dashboard')" class="block text-gray-300 font-medium">My Orders</a>
+                <div id="auth-mobile">
+                    <button onclick="openModal('auth-modal')" class="w-full bg-brand-500 text-white py-3 rounded-lg font-bold">Login / Signup</button>
+                </div>
+                <div id="profile-mobile" class="hidden border-t border-gray-800 pt-4">
+                    <div class="flex items-center gap-3 mb-4">
+                        <img id="mob-avatar" src="" class="w-10 h-10 rounded-full">
+                        <span id="mob-name" class="font-bold">User</span>
+                    </div>
+                    <button onclick="logout()" class="text-red-500 text-sm">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main id="app" class="flex-grow pt-24 pb-12 px-4 max-w-7xl mx-auto w-full min-h-[80vh]">
+        <!-- Dynamic Content Injected Here -->
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-dark-border bg-dark-card py-10 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-8 text-sm text-gray-500">
+            <div>
+                <h4 class="text-white font-bold text-lg mb-4">ProductHub.</h4>
+                <p>Premium dropshipping experience with curated products and secure payments.</p>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-4">Legal</h4>
+                <ul class="space-y-2">
+                    <li><a onclick="router('terms')" class="cursor-pointer hover:text-brand-500">Terms & Conditions</a></li>
+                    <li><a onclick="router('privacy')" class="cursor-pointer hover:text-brand-500">Privacy Policy</a></li>
+                    <li><a onclick="router('refunds')" class="cursor-pointer hover:text-brand-500">Refund Policy</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-white font-bold mb-4">Support</h4>
+                <p><i class="fas fa-envelope mr-2"></i> help@producthub.com</p>
+                <p class="mt-2"><i class="fas fa-phone mr-2"></i> +91 98765 43210</p>
+            </div>
+        </div>
+        <div class="text-center mt-10 text-xs text-gray-600">
+            &copy; 2024 Product Hub. All rights reserved.
+        </div>
+    </footer>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- 1. AUTH MODAL -->
+    <div id="auth-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeModal('auth-modal')"></div>
+        <div class="relative bg-dark-card border border-dark-border w-full max-w-md rounded-2xl p-6 shadow-2xl animate-slide-up">
+            <h2 class="text-2xl font-bold mb-1" id="auth-title">Welcome Back</h2>
+            <p class="text-gray-400 text-sm mb-6">Login to manage orders & easy checkout.</p>
+            
+            <!-- Email Auth -->
+            <div id="email-form" class="space-y-4">
+                <input type="email" id="auth-email" placeholder="Email Address" class="w-full bg-dark-bg border border-dark-border rounded-xl p-3 outline-none focus:border-brand-500 transition">
+                <input type="password" id="auth-pass" placeholder="Password" class="w-full bg-dark-bg border border-dark-border rounded-xl p-3 outline-none focus:border-brand-500 transition">
+                <button onclick="handleEmailAuth()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-xl transition">Continue</button>
+            </div>
+
+            <div class="flex items-center my-6">
+                <div class="flex-grow border-t border-dark-border"></div>
+                <span class="mx-4 text-xs text-gray-500 uppercase">Or</span>
+                <div class="flex-grow border-t border-dark-border"></div>
+            </div>
+
+            <!-- Social/Phone -->
+            <div class="space-y-3">
+                <button onclick="handleGoogleAuth()" class="w-full bg-white text-black font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition">
+                    <i class="fab fa-google"></i> Continue with Google
+                </button>
+                <!-- Phone placeholder: In production requires Recaptcha container -->
+                <button onclick="showToast('Phone Auth requires ReCaptcha config', 'info')" class="w-full border border-dark-border text-gray-300 font-semibold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-800 transition">
+                    <i class="fas fa-phone"></i> Continue with Phone
+                </button>
+            </div>
+
+            <p class="text-center mt-6 text-sm text-gray-400">
+                <span id="auth-switch-text">No account?</span> 
+                <button onclick="toggleAuthMode()" class="text-brand-500 font-bold hover:underline">Sign Up</button>
+            </p>
+        </div>
+    </div>
+
+    <!-- 2. PRODUCT DETAIL MODAL -->
+    <div id="product-modal" class="fixed inset-0 z-[60] hidden flex items-end md:items-center justify-center md:px-4">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="closeModal('product-modal')"></div>
+        <div class="relative bg-dark-card border border-dark-border w-full max-w-4xl h-[90vh] md:h-auto md:max-h-[85vh] md:rounded-2xl rounded-t-2xl overflow-hidden shadow-2xl flex flex-col md:flex-row animate-slide-up">
+            
+            <!-- Close Button -->
+            <button onclick="closeModal('product-modal')" class="absolute top-4 right-4 z-10 bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-times"></i></button>
+
+            <!-- Image Section -->
+            <div class="w-full md:w-1/2 bg-black flex items-center justify-center relative group h-1/2 md:h-auto">
+                <img id="p-modal-img" src="" class="max-h-full max-w-full object-contain p-4">
+            </div>
+
+            <!-- Info Section -->
+            <div class="w-full md:w-1/2 p-6 md:p-10 overflow-y-auto bg-dark-card flex flex-col">
+                <div class="mb-auto">
+                    <!-- Return Badge -->
+                    <div id="p-return-badge" class="inline-block px-3 py-1 rounded-full text-xs font-bold mb-3"></div>
+
+                    <h2 id="p-modal-title" class="text-2xl md:text-3xl font-bold text-white mb-2 leading-tight"></h2>
+                    <p id="p-modal-sku" class="text-xs text-gray-500 mb-4 font-mono">ID: #SKU123</p>
+                    
+                    <p id="p-modal-desc" class="text-gray-400 text-sm leading-relaxed mb-6"></p>
+
+                    <!-- Pricing Card -->
+                    <div class="bg-dark-bg border border-dark-border p-4 rounded-xl mb-6">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-gray-400 text-sm">MRP</span>
+                            <span id="p-modal-mrp" class="text-gray-500 line-through"></span>
+                        </div>
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-white font-medium">Standard Price</span>
+                            <span id="p-modal-price" class="text-xl font-bold text-white"></span>
+                        </div>
+                        <div class="border-t border-dashed border-gray-700 pt-3 flex justify-between items-center">
+                            <span class="text-brand-500 font-bold flex items-center gap-2">
+                                <i class="fas fa-bolt"></i> UPI Offer
+                            </span>
+                            <span id="p-modal-upi" class="text-2xl font-bold text-brand-500"></span>
+                        </div>
+                        <p class="text-[10px] text-gray-500 text-right mt-1">Select "Manual UPI" at checkout</p>
+                    </div>
+                </div>
+
+                <button id="buy-btn" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-4 rounded-xl transition shadow-lg shadow-brand-500/20">
+                    Buy Now
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. CHECKOUT MODAL -->
+    <div id="checkout-modal" class="fixed inset-0 z-[70] hidden flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-black/80" onclick="closeModal('checkout-modal')"></div>
+        <div class="relative bg-dark-card w-full max-w-lg rounded-2xl p-6 border border-dark-border animate-slide-up max-h-[90vh] overflow-y-auto">
+            <h3 class="text-xl font-bold text-white mb-4">Secure Checkout</h3>
+            
+            <!-- Product Summary -->
+            <div id="checkout-summary" class="bg-dark-bg p-4 rounded-xl mb-6 border border-dark-border">
+                <!-- Injected via JS -->
+            </div>
+
+            <!-- Address -->
+            <div class="mb-6">
+                <label class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 block">Shipping Address</label>
+                <textarea id="address-input" class="w-full bg-dark-bg border border-dark-border rounded-xl p-3 text-sm outline-none focus:border-brand-500" rows="3" placeholder="Full address with pincode..."></textarea>
+            </div>
+
+            <!-- Payment Methods -->
+            <label class="text-xs text-gray-400 uppercase font-bold tracking-wider mb-2 block">Payment Method</label>
+            <div class="space-y-3 mb-6">
+                
+                <!-- Manual UPI -->
+                <div class="border border-dark-border rounded-xl p-3 cursor-pointer hover:border-brand-500 transition relative overflow-hidden group">
+                    <input type="radio" name="payment" value="upi" class="peer absolute opacity-0 w-full h-full cursor-pointer" checked>
+                    <div class="flex items-center justify-between pointer-events-none">
+                        <div class="flex items-center gap-3">
+                            <div class="w-5 h-5 rounded-full border border-gray-500 peer-checked:bg-brand-500 peer-checked:border-brand-500 flex items-center justify-center dot-indicator"></div>
+                            <span class="text-white font-medium">UPI Direct Transfer</span>
+                        </div>
+                        <span class="text-green-500 text-xs font-bold bg-green-500/10 px-2 py-1 rounded">Best Price</span>
+                    </div>
+                    <!-- UPI Dropdown -->
+                    <div id="upi-details" class="mt-3 pt-3 border-t border-gray-700 hidden peer-checked:block">
+                        <div class="flex justify-center mb-3 bg-white p-2 rounded-lg w-fit mx-auto">
+                            <img id="qr-code" src="" class="w-32 h-32">
+                        </div>
+                        <div class="flex items-center bg-black rounded-lg p-2 mb-3 border border-gray-700">
+                            <input type="text" id="upi-id-display" readonly class="bg-transparent text-white text-sm flex-1 outline-none font-mono text-center">
+                            <button onclick="copyUPI()" class="text-brand-500 text-xs font-bold uppercase ml-2">Copy</button>
+                        </div>
+                        <input type="text" id="utr-input" placeholder="Enter UTR / Transaction ID (Required)" class="w-full bg-dark-bg border border-brand-500/50 rounded-lg p-2 text-sm outline-none">
+                    </div>
+                </div>
+
+                <!-- Online (Razorpay) -->
+                <div class="border border-dark-border rounded-xl p-3 cursor-pointer hover:border-brand-500 transition relative">
+                    <input type="radio" name="payment" value="razorpay" class="peer absolute opacity-0 w-full h-full cursor-pointer">
+                    <div class="flex items-center justify-between pointer-events-none">
+                        <div class="flex items-center gap-3">
+                            <div class="w-5 h-5 rounded-full border border-gray-500 flex items-center justify-center dot-indicator"></div>
+                            <span class="text-white font-medium">Cards / Netbanking</span>
+                        </div>
+                        <i class="fas fa-credit-card text-gray-500"></i>
+                    </div>
+                </div>
+
+                <!-- COD -->
+                <div class="border border-dark-border rounded-xl p-3 cursor-pointer hover:border-brand-500 transition relative">
+                    <input type="radio" name="payment" value="cod" class="peer absolute opacity-0 w-full h-full cursor-pointer">
+                    <div class="flex items-center justify-between pointer-events-none">
+                        <div class="flex items-center gap-3">
+                            <div class="w-5 h-5 rounded-full border border-gray-500 flex items-center justify-center dot-indicator"></div>
+                            <span class="text-white font-medium">Cash on Delivery</span>
+                        </div>
+                        <span class="text-gray-500 text-xs">+ ₹0 Fee</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action -->
+            <button onclick="placeOrder()" class="w-full bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 rounded-xl transition">Confirm Order</button>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-dark-card border border-brand-500 text-white px-6 py-3 rounded-full shadow-2xl z-[100] translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-3">
+        <i class="fas fa-info-circle text-brand-500"></i>
+        <span id="toast-msg" class="text-sm font-medium">Notification</span>
+    </div>
+
+    <!-- SCRIPT -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        // ==========================================
+        // CONFIGURATION (PASTE KEYS HERE)
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "PASTE_YOUR_API_KEY_HERE",
+            authDomain: "PASTE_PROJECT_ID.firebaseapp.com",
+            projectId: "PASTE_PROJECT_ID",
+            storageBucket: "PASTE_PROJECT_ID.appspot.com",
+            messagingSenderId: "PASTE_SENDER_ID",
+            appId: "PASTE_APP_ID"
+        };
+
+        const SETTINGS = {
+            upiId: "store@upi",
+            qrApi: "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=",
+            razorpayKey: "rzp_test_PLACEHOLDER" // Test Mode
+        };
+
+        // ==========================================
+        // STATE & INIT
+        // ==========================================
+        let app, auth, db, DEMO_MODE = false;
+        let currentUser = null;
+        let products = [];
+        let currentCartItem = null; // Simplified single item cart for MVP
+
+        try {
+            if (firebaseConfig.apiKey.includes("PASTE")) throw new Error("Config Missing");
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.warn("Running in DEMO MODE. Configure Firebase to go live.");
+            DEMO_MODE = true;
+        }
+
+        // ==========================================
+        // DUMMY DATA (Fallback)
+        // ==========================================
+        const DUMMY_PRODUCTS = [
+            { id: 'p1', name: 'Ultra Bass Wireless Headphones', desc: 'Active Noise Cancelling, 40h Battery, Premium Comfort.', mrp: 5999, price: 2499, upiPrice: 2299, images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e'], active: true, returnable: true },
+            { id: 'p2', name: 'Series 7 Smartwatch', desc: 'Heart rate, SpO2, GPS tracking with AMOLED display.', mrp: 4999, price: 1999, upiPrice: 1850, images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30'], active: true, returnable: false },
+            { id: 'p3', name: 'Gaming Mechanical Keyboard', desc: 'RGB Backlit, Blue Switches, Compact 60% layout.', mrp: 3500, price: 1599, upiPrice: 1499, images: ['https://images.unsplash.com/photo-1587829741301-dc798b91a603'], active: true, returnable: true },
+            { id: 'p4', name: 'Leather Messenger Bag', desc: 'Pure leather, handcrafted, laptop compartment.', mrp: 8000, price: 3999, upiPrice: 3800, images: ['https://images.unsplash.com/photo-1553062407-98eeb64c6a62'], active: true, returnable: true },
+            { id: 'p5', name: 'Product Coming Soon', desc: 'Launch pending.', mrp: 0, price: 0, upiPrice: 0, images: ['https://images.unsplash.com/photo-1592078615290-033ee584e267'], active: false, returnable: false },
+        ];
+
+        // ==========================================
+        // LOGIC: AUTH
+        // ==========================================
+        if (!DEMO_MODE) {
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                updateNav();
+            });
+        }
+
+        window.handleEmailAuth = async () => {
+            if (DEMO_MODE) { mockLogin(); return; }
+            const email = document.getElementById('auth-email').value;
+            const pass = document.getElementById('auth-pass').value;
+            const isRegister = document.getElementById('auth-title').innerText.includes('Create');
+
+            try {
+                if (isRegister) {
+                    await createUserWithEmailAndPassword(auth, email, pass);
+                    showToast("Account Created!");
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                    showToast("Login Successful!");
+                }
+                closeModal('auth-modal');
+            } catch (e) {
+                showToast(e.message.replace('Firebase:', '').trim(), 'error');
+            }
+        };
+
+        window.handleGoogleAuth = async () => {
+            if (DEMO_MODE) { mockLogin(); return; }
+            try {
+                await signInWithPopup(auth, new GoogleAuthProvider());
+                closeModal('auth-modal');
+                showToast("Google Login Successful!");
+            } catch (e) { showToast(e.message, 'error'); }
+        };
+
+        window.logout = async () => {
+            if (!DEMO_MODE) await signOut(auth);
+            currentUser = null;
+            updateNav();
+            router('home');
+            showToast("Logged Out");
+        };
+
+        function mockLogin() {
+            currentUser = { email: 'demo@user.com', displayName: 'Demo User' };
+            updateNav();
+            closeModal('auth-modal');
+            showToast("Demo Mode: Logged In");
+        }
+
+        function updateNav() {
+            const loggedIn = !!currentUser;
+            document.getElementById('auth-desktop').classList.toggle('hidden', loggedIn);
+            document.getElementById('profile-desktop').classList.toggle('hidden', !loggedIn);
+            document.getElementById('auth-mobile').classList.toggle('hidden', loggedIn);
+            document.getElementById('profile-mobile').classList.toggle('hidden', !loggedIn);
+            
+            if (loggedIn) {
+                const img = currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.email}&background=ff6b00&color=fff`;
+                document.getElementById('nav-avatar').src = img;
+                document.getElementById('mob-avatar').src = img;
+                document.getElementById('mob-name').innerText = currentUser.displayName || currentUser.email.split('@')[0];
+            }
+        }
+
+        window.toggleAuthMode = () => {
+            const title = document.getElementById('auth-title');
+            const switchText = document.getElementById('auth-switch-text');
+            const btn = document.querySelector('#auth-modal button[onclick*="handleEmailAuth"]');
+            
+            if (title.innerText.includes('Welcome')) {
+                title.innerText = 'Create Account';
+                switchText.innerText = 'Have an account?';
+                btn.innerText = 'Sign Up';
+            } else {
+                title.innerText = 'Welcome Back';
+                switchText.innerText = 'No account?';
+                btn.innerText = 'Continue';
+            }
+        };
+
+        // ==========================================
+        // LOGIC: DATA
+        // ==========================================
+        async function getProducts() {
+            if (DEMO_MODE) return DUMMY_PRODUCTS;
+            const q = query(collection(db, "products"));
+            try {
+                const snap = await getDocs(q);
+                return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            } catch { return DUMMY_PRODUCTS; }
+        }
+
+        async function getOrders() {
+            if (DEMO_MODE || !currentUser) return [];
+            const q = query(collection(db, "orders"), where("userId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+            const snap = await getDocs(q);
+            return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        }
+
+        // ==========================================
+        // LOGIC: ROUTER & RENDERING
+        // ==========================================
+        window.router = async (view) => {
+            const app = document.getElementById('app');
+            document.getElementById('mobile-menu').classList.add('hidden');
+            window.scrollTo(0,0);
+            
+            // Loading State
+            app.innerHTML = '<div class="flex items-center justify-center h-[60vh]"><div class="loader"></div></div>';
+
+            if (view === 'home') {
+                products = await getProducts();
+                renderHome(app);
+            } else if (view === 'dashboard') {
+                if (!currentUser) { openModal('auth-modal'); router('home'); return; }
+                const orders = await getOrders();
+                renderDashboard(app, orders);
+            } else if (view === 'profile') {
+                if (!currentUser) { openModal('auth-modal'); router('home'); return; }
+                renderProfile(app);
+            } else if (view === 'terms' || view === 'privacy' || view === 'refunds') {
+                renderLegal(app, view);
+            }
+        };
+
+        function renderHome(container) {
+            container.innerHTML = `
+                <!-- HERO -->
+                <div class="mb-10 text-center animate-fade-in">
+                    <h1 class="text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-400 to-gray-600 mb-4 pb-2">
+                        Premium Drops
+                    </h1>
+                    <p class="text-gray-400 max-w-xl mx-auto">Curated tech and lifestyle essentials delivered to your doorstep.</p>
+                    <div class="mt-6 relative max-w-md mx-auto">
+                        <input onkeyup="filterProducts(this.value)" type="text" placeholder="Search products..." class="w-full bg-dark-card border border-dark-border rounded-full py-3 px-6 text-white focus:border-brand-500 outline-none shadow-xl">
+                        <i class="fas fa-search absolute right-5 top-4 text-gray-500"></i>
+                    </div>
+                </div>
+
+                <!-- GRID -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    ${products.map(p => {
+                        if (!p.active) return `
+                            <div class="bg-dark-card border border-dark-border rounded-2xl p-4 opacity-50 relative overflow-hidden grayscale">
+                                <div class="absolute inset-0 flex items-center justify-center z-10 font-bold uppercase tracking-widest text-white/50 border-2 border-white/20 m-4 rounded-xl">Coming Soon</div>
+                                <img src="${p.images[0]}" class="h-48 w-full object-cover rounded-xl mb-4">
+                                <div class="h-4 bg-gray-800 rounded w-3/4"></div>
+                            </div>
+                        `;
+                        const discount = Math.round(((p.mrp - p.price)/p.mrp)*100);
+                        return `
+                        <div onclick="openProduct('${p.id}')" class="group bg-dark-card border border-dark-border rounded-2xl p-3 hover:border-brand-500/50 transition duration-300 cursor-pointer animate-fade-in product-card" data-name="${p.name.toLowerCase()}">
+                            <div class="relative overflow-hidden rounded-xl bg-white aspect-[4/3]">
+                                <img src="${p.images[0]}" class="w-full h-full object-contain transform group-hover:scale-110 transition duration-500">
+                                <div class="absolute top-2 right-2 bg-brand-500 text-white text-[10px] font-bold px-2 py-1 rounded-full">-${discount}%</div>
+                            </div>
+                            <div class="pt-4 px-1">
+                                <h3 class="font-bold text-lg leading-tight mb-1 text-white group-hover:text-brand-500 transition line-clamp-2">${p.name}</h3>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="text-xl font-bold text-white">₹${p.price}</span>
+                                    <span class="text-xs text-gray-500 line-through">₹${p.mrp}</span>
+                                </div>
+                                <div class="mt-2 text-xs text-brand-500 font-medium"><i class="fas fa-qrcode mr-1"></i> UPI ₹${p.upiPrice}</div>
+                            </div>
+                        </div>
+                    `}).join('')}
+                </div>
+            `;
+        }
+
+        window.filterProducts = (val) => {
+            const term = val.toLowerCase();
+            document.querySelectorAll('.product-card').forEach(el => {
+                el.classList.toggle('hidden', !el.dataset.name.includes(term));
+            });
+        };
+
+        window.openProduct = (id) => {
+            const p = products.find(x => x.id === id);
+            if (!p) return;
+            currentCartItem = p;
+
+            document.getElementById('p-modal-img').src = p.images[0];
+            document.getElementById('p-modal-title').innerText = p.name;
+            document.getElementById('p-modal-sku').innerText = `SKU: ${p.id.toUpperCase()}`;
+            document.getElementById('p-modal-desc').innerText = p.desc;
+            document.getElementById('p-modal-mrp').innerText = '₹' + p.mrp;
+            document.getElementById('p-modal-price').innerText = '₹' + p.price;
+            document.getElementById('p-modal-upi').innerText = '₹' + p.upiPrice;
+
+            // Return Logic
+            const badge = document.getElementById('p-return-badge');
+            if (p.returnable) {
+                badge.className = "inline-block px-3 py-1 rounded-full text-xs font-bold mb-3 bg-green-500/20 text-green-500";
+                badge.innerText = "✓ 7 Days Return Available";
+            } else {
+                badge.className = "inline-block px-3 py-1 rounded-full text-xs font-bold mb-3 bg-red-500/20 text-red-500";
+                badge.innerText = "⚠ Non-Returnable Item";
+            }
+
+            document.getElementById('product-modal').classList.remove('hidden');
+            
+            // Bind Buy Button
+            document.getElementById('buy-btn').onclick = () => {
+                if (!currentUser) {
+                    closeModal('product-modal');
+                    openModal('auth-modal');
+                    showToast('Login required to purchase');
+                    return;
+                }
+                initCheckout();
+            };
+        };
+
+        function initCheckout() {
+            closeModal('product-modal');
+            const p = currentCartItem;
+            
+            // Setup UPI Info
+            document.getElementById('upi-id-display').value = SETTINGS.upiId;
+            document.getElementById('qr-code').src = SETTINGS.qrApi + SETTINGS.upiId;
+
+            // Setup Summary
+            document.getElementById('checkout-summary').innerHTML = `
+                <div class="flex items-start gap-3 mb-3">
+                    <img src="${p.images[0]}" class="w-12 h-12 rounded bg-white object-contain">
+                    <div>
+                        <p class="font-bold text-sm text-white line-clamp-1">${p.name}</p>
+                        <p class="text-xs text-gray-400">Qty: 1</p>
+                    </div>
+                </div>
+                <div class="border-t border-gray-700 pt-2 space-y-1 text-sm">
+                    <div class="flex justify-between text-gray-400"><span>Price</span> <span>₹${p.price}</span></div>
+                    <div class="flex justify-between text-brand-500 font-bold hidden" id="upi-row"><span>UPI Discount</span> <span>-₹${p.price - p.upiPrice}</span></div>
+                    <div class="flex justify-between text-white font-bold text-lg mt-2"><span>Total</span> <span id="final-total">₹${p.upiPrice}</span></div>
+                </div>
+            `;
+
+            // Payment Listener
+            const radios = document.getElementsByName('payment');
+            radios.forEach(r => r.addEventListener('change', updateTotal));
+            
+            // Reset to default (UPI)
+            radios[0].checked = true;
+            updateTotal();
+
+            document.getElementById('checkout-modal').classList.remove('hidden');
+        }
+
+        function updateTotal() {
+            const method = document.querySelector('input[name="payment"]:checked').value;
+            const p = currentCartItem;
+            const upiRow = document.getElementById('upi-row');
+            const total = document.getElementById('final-total');
+            const details = document.getElementById('upi-details');
+
+            // Logic: Toggle UPI details display logic handle via CSS peer-checked, here just handle price
+            if (method === 'upi') {
+                upiRow.classList.remove('hidden');
+                total.innerText = '₹' + p.upiPrice;
+            } else {
+                upiRow.classList.add('hidden');
+                total.innerText = '₹' + p.price;
+            }
+        }
+
+        window.placeOrder = async () => {
+            const address = document.getElementById('address-input').value;
+            if (!address || address.length < 10) { showToast('Please enter a valid address', 'error'); return; }
+
+            const method = document.querySelector('input[name="payment"]:checked').value;
+            const p = currentCartItem;
+            const price = method === 'upi' ? p.upiPrice : p.price;
+
+            // Manual UPI Validation
+            let utr = '';
+            if (method === 'upi') {
+                utr = document.getElementById('utr-input').value;
+                if (utr.length < 4) { showToast('Please enter Payment UTR/Ref ID', 'error'); return; }
+            }
+
+            // Razorpay Hook
+            if (method === 'razorpay') {
+                if(DEMO_MODE) {
+                     // Fake Success
+                } else {
+                     // Add Razorpay logic here (create order on backend, then open modal)
+                     alert("Razorpay implementation requires Cloud Functions. Simulating success.");
+                }
+            }
+
+            // Save Order
+            const orderData = {
+                userId: currentUser.uid,
+                item: { id: p.id, name: p.name, img: p.images[0] },
+                total: price,
+                method: method,
+                utr: utr, // Save UTR for admin verification
+                address: address,
+                status: method === 'cod' ? 'Confirmed' : (method === 'upi' ? 'Verification Pending' : 'Paid'),
+                trackingMsg: 'Order received. Processing.',
+                createdAt: new Date().toISOString(),
+                returnable: p.returnable
+            };
+
+            try {
+                if (!DEMO_MODE) await addDoc(collection(db, "orders"), orderData);
+                closeModal('checkout-modal');
+                router('dashboard');
+                showToast('Order Placed Successfully!');
+            } catch (e) {
+                if (DEMO_MODE) { closeModal('checkout-modal'); router('dashboard'); showToast('Demo Order Placed'); }
+                else showToast('Error saving order', 'error');
+            }
+        };
+
+        function renderDashboard(container, orders) {
+            if (orders.length === 0) {
+                container.innerHTML = `<div class="text-center mt-20 text-gray-500"><i class="fas fa-box-open text-4xl mb-4"></i><p>No orders yet.</p><button onclick="router('home')" class="text-brand-500 mt-2 font-bold">Start Shopping</button></div>`;
+                return;
+            }
+            container.innerHTML = `
+                <h2 class="text-2xl font-bold mb-6 animate-fade-in">My Orders</h2>
+                <div class="space-y-4">
+                    ${orders.map(o => `
+                        <div class="bg-dark-card border border-dark-border rounded-xl p-4 animate-fade-in">
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex gap-4">
+                                    <img src="${o.item.img}" class="w-16 h-16 rounded bg-white object-contain">
+                                    <div>
+                                        <h4 class="font-bold text-white">${o.item.name}</h4>
+                                        <p class="text-sm text-gray-400">Total: ₹${o.total} (${o.method.toUpperCase()})</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-bold px-2 py-1 rounded ${getStatusColor(o.status)}">${o.status}</span>
+                            </div>
+                            
+                            <!-- Tracking Bar -->
+                            <div class="bg-dark-bg p-3 rounded-lg border border-dark-border text-sm mb-3">
+                                <p class="text-brand-500 font-bold mb-1"><i class="fas fa-truck mr-2"></i> ${o.trackingMsg}</p>
+                                <p class="text-xs text-gray-500">Expected Delivery: 3-5 Business Days</p>
+                            </div>
+
+                            <div class="flex justify-between items-center text-xs text-gray-500 border-t border-gray-700 pt-3">
+                                <span>Order ID: #${o.id.substring(0,8).toUpperCase()}</span>
+                                ${o.returnable && o.status === 'Delivered' ? '<button class="text-white bg-gray-700 px-3 py-1 rounded hover:bg-gray-600">Return Item</button>' : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function getStatusColor(s) {
+            if (s.includes('Pending')) return 'bg-yellow-500/20 text-yellow-500';
+            if (s === 'Confirmed' || s === 'Paid') return 'bg-blue-500/20 text-blue-500';
+            if (s === 'Delivered') return 'bg-green-500/20 text-green-500';
+            return 'bg-gray-500/20 text-gray-500';
+        }
+
+        function renderProfile(c) {
+            c.innerHTML = `
+                <div class="max-w-xl mx-auto bg-dark-card p-8 rounded-2xl border border-dark-border text-center animate-fade-in">
+                    <img src="${document.getElementById('nav-avatar').src}" class="w-24 h-24 rounded-full mx-auto mb-4 border-2 border-brand-500 p-1">
+                    <h2 class="text-2xl font-bold">${currentUser.displayName || 'User'}</h2>
+                    <p class="text-gray-400 mb-6">${currentUser.email}</p>
+                    <div class="grid grid-cols-2 gap-4 text-left mb-6">
+                        <div class="bg-dark-bg p-4 rounded-xl">
+                            <p class="text-xs text-gray-500 uppercase">Member Since</p>
+                            <p class="font-mono text-sm">${new Date(currentUser.metadata.creationTime).toLocaleDateString()}</p>
+                        </div>
+                        <div class="bg-dark-bg p-4 rounded-xl">
+                            <p class="text-xs text-gray-500 uppercase">User ID</p>
+                            <p class="font-mono text-sm truncate">${currentUser.uid}</p>
+                        </div>
+                    </div>
+                    <button onclick="logout()" class="w-full border border-red-500/50 text-red-500 py-3 rounded-xl hover:bg-red-500/10 transition">Sign Out</button>
+                </div>
+            `;
+        }
+
+        function renderLegal(c, type) {
+            let title = type === 'terms' ? 'Terms of Service' : (type === 'privacy' ? 'Privacy Policy' : 'Refund Policy');
+            // Professional Placeholder Text
+            let content = `
+                <p class="mb-4 text-gray-400">Effective Date: Jan 1, 2024</p>
+                <h3 class="text-xl text-white font-bold mt-6 mb-2">1. Introduction</h3>
+                <p class="text-gray-400 leading-relaxed">Welcome to Product Hub. By accessing our website, you agree to be bound by these provisions.</p>
+                <h3 class="text-xl text-white font-bold mt-6 mb-2">2. Orders & Payments</h3>
+                <p class="text-gray-400 leading-relaxed">We accept UPI, Credit Cards, and COD. Orders are subject to verification.</p>
+                <h3 class="text-xl text-white font-bold mt-6 mb-2">3. ${type === 'refunds' ? 'Returns & Refunds' : 'Data Protection'}</h3>
+                <p class="text-gray-400 leading-relaxed">${type === 'refunds' ? 'Items marked as returnable can be returned within 7 days of delivery. Refunds are processed to original source within 5-7 business days.' : 'We implement standard security protocols to protect your data. We do not sell your personal information.'}</p>
+            `;
+            
+            c.innerHTML = `
+                <div class="max-w-3xl mx-auto bg-dark-card p-8 rounded-2xl border border-dark-border animate-fade-in">
+                    <h1 class="text-3xl font-bold mb-6 border-b border-gray-700 pb-4">${title}</h1>
+                    ${content}
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // HELPERS
+        // ==========================================
+        window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
+        window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+        window.toggleMenu = () => document.getElementById('mobile-menu').classList.toggle('hidden');
+        window.copyUPI = () => {
+            navigator.clipboard.writeText(SETTINGS.upiId);
+            showToast("UPI ID Copied");
+        };
+        window.showToast = (msg, type) => {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            t.classList.remove('translate-y-20', 'opacity-0');
+            if(type === 'error') t.classList.add('border-red-500'); else t.classList.remove('border-red-500');
+            setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+        };
+
+        // Start App
+        router('home');
+    </script>
+</body>
+</html>
