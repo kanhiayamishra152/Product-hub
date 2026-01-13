@@ -22,7 +22,7 @@
                         brand: { 500: '#ff6b00', 600: '#e65100' },
                         dark: { bg: '#050505', card: '#121212', border: '#262626' }
                     },
-                    animation: { 'fade-in': 'fadeIn 0.3s ease-out', 'slide-up': 'slideUp 0.4s ease-out' },
+                    animation: { 'fade-in': 'fadeIn 0.3s ease-out', 'slide-up': 'slideUp 0.4s ease-out', 'pulse-slow': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' },
                     keyframes: {
                         fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
                         slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
@@ -44,6 +44,9 @@
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .loader { width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #ff6b00; border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        /* Image Upload Overlay */
+        .img-overlay { opacity: 0; transition: 0.3s; background: rgba(0,0,0,0.6); }
+        .group:hover .img-overlay { opacity: 1; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen transition-colors duration-300">
@@ -64,7 +67,7 @@
                     <button onclick="openModal('auth-modal')" class="bg-white text-black hover:bg-gray-200 px-5 py-2 rounded-full font-bold transition text-xs uppercase tracking-wider">Login</button>
                 </div>
                 <div id="profile-desktop" class="hidden relative group">
-                    <img id="nav-avatar" src="" class="w-9 h-9 rounded-full border border-gray-700 cursor-pointer">
+                    <img id="nav-avatar" src="" class="w-9 h-9 rounded-full border border-gray-700 cursor-pointer object-cover">
                     <div class="absolute right-0 mt-2 w-48 bg-dark-card border border-dark-border rounded-xl shadow-2xl py-2 hidden group-hover:block animate-fade-in">
                         <a onclick="router('profile')" class="block px-4 py-2 hover:bg-gray-800 text-sm">Profile Settings</a>
                         <a onclick="logout()" class="block px-4 py-2 hover:bg-gray-800 text-red-500 text-sm">Sign Out</a>
@@ -82,7 +85,7 @@
                 </div>
                 <div id="profile-mobile" class="hidden border-t border-gray-800 pt-4">
                     <div class="flex items-center gap-3 mb-4">
-                        <img id="mob-avatar" src="" class="w-10 h-10 rounded-full">
+                        <img id="mob-avatar" src="" class="w-10 h-10 rounded-full object-cover">
                         <span id="mob-name" class="font-bold">User</span>
                     </div>
                     <button onclick="logout()" class="text-red-500 text-sm">Logout</button>
@@ -220,14 +223,13 @@
         <span id="toast-msg" class="text-sm font-medium">Notification</span>
     </div>
 
-    <!-- FIXED JAVASCRIPT LOGIC -->
+    <!-- JAVASCRIPT LOGIC -->
     <script type="module">
-        // 1. STANDARD FIREBASE IMPORTS (CDN)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
         import { getFirestore, collection, getDocs, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-        // 2. YOUR REAL FIREBASE CONFIGURATION
+        // FIREBASE CONFIGURATION
         const firebaseConfig = {
           apiKey: "AIzaSyCNzC9ktPg35HFI7Ysug00UGbxpyPF4CWc",
           authDomain: "product-hub-2460f.firebaseapp.com",
@@ -238,52 +240,76 @@
           appId: "1:25625286602:web:5d660edd5f3dc7d86ce133"
         };
 
+        const IMGBB_API_KEY = "e2e1a14ef34ed25e0344727a71f65a6d";
+
         const SETTINGS = {
             upiId: "store@upi",
             qrApi: "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=",
         };
 
-        // 3. INITIALIZATION
+        // INITIALIZATION
         let app, auth, db, DEMO_MODE = false;
-        
         try {
-            // Initializing with your keys
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
             db = getFirestore(app);
-            console.log("Firebase Connected Successfully");
+            console.log("Firebase Connected");
         } catch (e) {
-            console.error("Firebase Connection Failed", e);
-            DEMO_MODE = true; // Fallback only if keys are wrong
+            console.warn("Firebase Config Error", e);
+            DEMO_MODE = true;
         }
 
-        // 4. GLOBAL STATE
+        // STATE
         let currentUser = null;
         let products = [];
         let currentCartItem = null;
 
-        // 5. AUTH LISTENER (SOURCE OF TRUTH)
+        // AUTH
         if (!DEMO_MODE) {
             onAuthStateChanged(auth, (user) => {
                 currentUser = user;
                 updateNavUI();
-                if(document.querySelector('#nav-dashboard') && !document.querySelector('#nav-dashboard').classList.contains('hidden')) {
-                   // Optional refresh
-                }
             });
         }
 
-        // ==========================================
-        // WINDOW EXPORTS
-        // ==========================================
+        // IMGBB UPLOAD HELPER
+        window.uploadProfileImage = async (file) => {
+            if (!file) return;
+            showToast("Uploading Image...");
+            
+            const formData = new FormData();
+            formData.append("image", file);
 
+            try {
+                const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                    method: "POST",
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const imgUrl = data.data.url;
+                    // Update Firebase Profile
+                    await updateProfile(auth.currentUser, { photoURL: imgUrl });
+                    showToast("Profile Updated!");
+                    // Refresh UI
+                    router('profile');
+                    updateNavUI();
+                } else {
+                    showToast("Upload Failed", 'error');
+                }
+            } catch (error) {
+                console.error(error);
+                showToast("Upload Error", 'error');
+            }
+        };
+
+        // WINDOW EXPORTS
         window.handleEmailAuth = async () => {
             const email = document.getElementById('auth-email').value;
             const pass = document.getElementById('auth-pass').value;
             const title = document.getElementById('auth-title').innerText;
-            
             if (DEMO_MODE) { mockLogin(); return; }
-
             try {
                 if (title.includes('Create')) {
                     await createUserWithEmailAndPassword(auth, email, pass);
@@ -293,9 +319,7 @@
                     showToast("Login Successful!");
                 }
                 closeModal('auth-modal');
-            } catch (e) {
-                showToast(e.message, 'error');
-            }
+            } catch (e) { showToast(e.message, 'error'); }
         };
 
         window.handleGoogleAuth = async () => {
@@ -305,9 +329,7 @@
                 await signInWithPopup(auth, provider);
                 closeModal('auth-modal');
                 showToast("Google Login Successful!");
-            } catch (e) {
-                showToast(e.message, 'error');
-            }
+            } catch (e) { showToast(e.message, 'error'); }
         };
 
         window.logout = async () => {
@@ -323,25 +345,16 @@
             document.getElementById('mobile-menu').classList.add('hidden');
             window.scrollTo(0,0);
             
-            // Loading State
             app.innerHTML = '<div class="flex items-center justify-center h-[60vh]"><div class="loader"></div></div>';
 
             if (view === 'home') {
                 await fetchProducts();
                 renderHome(app);
             } else if (view === 'dashboard') {
-                if (!currentUser && !DEMO_MODE) { 
-                    openModal('auth-modal'); 
-                    router('home'); 
-                    return; 
-                }
+                if (!currentUser && !DEMO_MODE) { openModal('auth-modal'); router('home'); return; }
                 await fetchOrders();
             } else if (view === 'profile') {
-                if (!currentUser && !DEMO_MODE) { 
-                    openModal('auth-modal'); 
-                    router('home'); 
-                    return; 
-                }
+                if (!currentUser && !DEMO_MODE) { openModal('auth-modal'); router('home'); return; }
                 renderProfile(app);
             } else if (['terms', 'privacy'].includes(view)) {
                 renderLegal(app, view);
@@ -352,7 +365,6 @@
             const p = products.find(x => x.id === id);
             if (!p) return;
             currentCartItem = p;
-
             document.getElementById('p-modal-img').src = p.images ? p.images[0] : '';
             document.getElementById('p-modal-title').innerText = p.name;
             document.getElementById('p-modal-desc').innerText = p.description || p.desc || '';
@@ -360,7 +372,6 @@
             document.getElementById('p-modal-price').innerText = '₹' + p.discountPrice;
             document.getElementById('p-modal-upi').innerText = '₹' + p.upiDiscountPrice;
 
-            // Return Badge Logic
             const badge = document.getElementById('p-return-badge');
             if (p.returnable) {
                 badge.className = "inline-block px-3 py-1 rounded-full text-xs font-bold mb-3 bg-green-500/20 text-green-500";
@@ -371,16 +382,10 @@
             }
 
             openModal('product-modal');
-            
             const buyBtn = document.getElementById('buy-btn');
             buyBtn.onclick = () => {
-                if (!currentUser && !DEMO_MODE) {
-                    closeModal('product-modal');
-                    openModal('auth-modal');
-                    showToast('Please Login First');
-                } else {
-                    initCheckout();
-                }
+                if (!currentUser && !DEMO_MODE) { closeModal('product-modal'); openModal('auth-modal'); showToast('Please Login First'); }
+                else { initCheckout(); }
             };
         };
 
@@ -390,7 +395,6 @@
 
             const method = document.querySelector('input[name="payment"]:checked').value;
             const p = currentCartItem;
-            
             const finalPrice = method === 'upi' ? p.upiDiscountPrice : p.discountPrice;
 
             let utr = '';
@@ -419,16 +423,10 @@
                 closeModal('checkout-modal');
                 router('dashboard');
                 showToast('Order Placed Successfully!');
-            } catch (e) {
-                showToast('Error placing order', 'error');
-                console.error(e);
-            }
+            } catch (e) { showToast('Error placing order', 'error'); }
         };
 
-        // ==========================================
-        // UI HELPERS & RENDERERS
-        // ==========================================
-
+        // UI HELPERS
         function updateNavUI() {
             const loggedIn = !!currentUser;
             document.getElementById('auth-desktop').classList.toggle('hidden', loggedIn);
@@ -446,37 +444,23 @@
         }
 
         async function fetchProducts() {
-            if (DEMO_MODE) { products = getDummyProducts(); return; }
+            if (DEMO_MODE) { products = []; return; }
             try {
-                // If collection 'products' is empty in Firestore, this returns 0 docs.
                 const q = query(collection(db, "products"), where("active", "==", true));
                 const snap = await getDocs(q);
                 products = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                
-                // Fallback to dummy if empty so screen isn't blank
-                if (products.length === 0) {
-                     console.log("No products in Firestore yet. Showing Dummy.");
-                     products = getDummyProducts();
-                }
-            } catch (e) {
-                console.error("Product fetch error:", e);
-                products = getDummyProducts();
-            }
+            } catch (e) { products = []; }
         }
 
         async function fetchOrders() {
             const app = document.getElementById('app');
             let orders = [];
-            
-            if (DEMO_MODE) { orders = []; }
-            else {
+            if (!DEMO_MODE) {
                 try {
                     const q = query(collection(db, "orders"), where("userId", "==", currentUser.uid), orderBy("createdAt", "desc"));
                     const snap = await getDocs(q);
                     orders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                } catch (e) {
-                    console.error("Order fetch error:", e);
-                }
+                } catch (e) { console.error(e); }
             }
             renderDashboard(app, orders);
         }
@@ -491,6 +475,7 @@
                         <i class="fas fa-search absolute right-5 top-4 text-gray-500"></i>
                     </div>
                 </div>
+                ${products.length === 0 ? `<div class="text-center text-gray-500 mt-10"><p>No products available.</p></div>` : `
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     ${products.map(p => {
                         const discount = Math.round(((p.mrp - p.discountPrice)/p.mrp)*100);
@@ -510,7 +495,7 @@
                             </div>
                         </div>
                     `}).join('')}
-                </div>
+                </div>`}
             `;
         }
 
@@ -547,9 +532,17 @@
         }
 
         function renderProfile(c) {
+            const img = currentUser.photoURL || `https://ui-avatars.com/api/?name=${currentUser.displayName}&background=ff6b00&color=fff`;
             c.innerHTML = `
                 <div class="max-w-xl mx-auto bg-dark-card p-8 rounded-2xl border border-dark-border text-center animate-fade-in">
-                    <img src="${document.getElementById('nav-avatar').src}" class="w-24 h-24 rounded-full mx-auto mb-4 border-2 border-brand-500 p-1">
+                    <div class="relative w-24 h-24 mx-auto mb-4 group cursor-pointer">
+                        <img src="${img}" class="w-full h-full rounded-full border-2 border-brand-500 p-1 object-cover">
+                        <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center img-overlay">
+                            <i class="fas fa-camera text-white"></i>
+                        </div>
+                        <input type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="uploadProfileImage(this.files[0])">
+                    </div>
+                    
                     <h2 class="text-2xl font-bold">${currentUser.displayName || 'User'}</h2>
                     <p class="text-gray-400 mb-6">${currentUser.email}</p>
                     <button onclick="logout()" class="w-full border border-red-500/50 text-red-500 py-3 rounded-xl hover:bg-red-500/10 transition">Sign Out</button>
@@ -559,39 +552,6 @@
 
         function renderLegal(c, type) {
             c.innerHTML = `<div class="max-w-3xl mx-auto bg-dark-card p-8 rounded-2xl border border-dark-border animate-fade-in"><h1 class="text-3xl font-bold mb-6 capitalize">${type.replace('_', ' ')}</h1><p class="text-gray-400">Legal content goes here.</p></div>`;
-        }
-
-        function initCheckout() {
-            closeModal('product-modal');
-            const p = currentCartItem;
-            
-            document.getElementById('upi-id-display').value = SETTINGS.upiId;
-            document.getElementById('qr-code').src = SETTINGS.qrApi + SETTINGS.upiId;
-            
-            const radios = document.getElementsByName('payment');
-            radios.forEach(r => r.addEventListener('change', updateCheckoutTotal));
-            
-            updateCheckoutTotal();
-            document.getElementById('checkout-modal').classList.remove('hidden');
-        }
-
-        function updateCheckoutTotal() {
-            const method = document.querySelector('input[name="payment"]:checked').value;
-            const p = currentCartItem;
-            
-            const price = method === 'upi' ? p.upiDiscountPrice : p.discountPrice;
-            const summary = document.getElementById('checkout-summary');
-            
-            summary.innerHTML = `
-                <div class="flex items-start gap-3 mb-3">
-                    <img src="${p.images ? p.images[0] : ''}" class="w-12 h-12 rounded bg-white object-contain">
-                    <div><p class="font-bold text-sm text-white line-clamp-1">${p.name}</p></div>
-                </div>
-                <div class="border-t border-gray-700 pt-2 text-sm flex justify-between text-white font-bold text-lg mt-2">
-                    <span>Total To Pay</span> <span>₹${price}</span>
-                </div>
-                ${method === 'upi' ? '<p class="text-xs text-green-500 mt-1">UPI Discount Applied</p>' : ''}
-            `;
         }
 
         // --- UTILS ---
@@ -627,13 +587,6 @@
             if (s === 'Order Placed' || s === 'Confirmed') return 'bg-blue-500/20 text-blue-500';
             if (s === 'Delivered') return 'bg-green-500/20 text-green-500';
             return 'bg-gray-500/20 text-gray-500';
-        }
-
-        function getDummyProducts() {
-            return [
-                { id: '1', name: 'Wireless Headphones', description: 'Noise Cancelling', mrp: 5999, discountPrice: 2999, upiDiscountPrice: 2800, active: true, returnable: true, images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e'] },
-                { id: '2', name: 'Smart Watch', description: 'Fitness Tracker', mrp: 4999, discountPrice: 1999, upiDiscountPrice: 1800, active: true, returnable: false, images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30'] }
-            ];
         }
 
         function mockLogin() {
